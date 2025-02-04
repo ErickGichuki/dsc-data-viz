@@ -59,10 +59,10 @@ import numpy as np
 # Generate a data set of 10000 retirement age values
 x = 5*np.random.randn(10000) + 65
 
-# #Plot the distogram with hist() function
-# plt.hist(x, bins=50, edgecolor="black")
+#Plot the distogram with hist() function
+plt.hist(x, bins=50, edgecolor="black")
 
-# plt.xlabel('Retirement Age')
-# plt.ylabel('Frequency of Values')
-# plt.title('Histograms in Matplotlib')
-# plt.show()
+plt.xlabel('Retirement Age')
+plt.ylabel('Frequency of Values')
+plt.title('Histograms in Matplotlib')
+plt.show()
