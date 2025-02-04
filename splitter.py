@@ -1,170 +1,68 @@
-import json
-import os
-import subprocess
-from git import Repo, Git, GitCommandError
-import sys
+import matplotlib.pyplot as plt
+import numpy as np
 
-# CONSTANTS
-SOLUTION_TAG = "__SOLUTION__"
-CURRICULUM_BRANCH = "curriculum"
-MASTER_BRANCH = "master"
-SOLUTION_BRANCH = "solution"
-CUSTOM_COMMIT_MSG_FLAG = "-m"
-
-# FUNCTIONS
+# A scatter plot
+# x = np.linspace(0, 10, 30)
+# y = np.sin(x)
 
 
-def get_notebook_json(filename="index.ipynb"):
-    with open(filename, 'r') as f:
-        data = json.load(f)
-    return data
+# plt.figure(figsize=(10,6))
+# plt.scatter(x, y, label = "y = sin(x)" )
+# plt.xlabel('X Values')
+# plt.ylabel('Y Values')
+# plt.title('Scatter Plot in Matplotlib')
+# plt.legend()
+# plt.show()
 
+# A bar graph
+# Set seed for reproducibility
+# np.random.seed(100)
 
-def is_markdown_cell(cell):
-    return cell["cell_type"] == "markdown"
+# # Generate the x-axis variable as 10 categories using numpy's arange function
+# x = np.arange(10)
 
+# # For y-axis, generate 10 random quantities
+# y = np.random.randn(10)
 
-def contains_tag(line):
-    # returns true for '# __SOLUTION__' or '#__SOLUTION__'
-    return any(tag in line.strip().split(" ") for tag in [SOLUTION_TAG, f"#{SOLUTION_TAG}"])
+# plt.figure(figsize=(10,6))
 
+# # Use the bar() function to create a plot using the above values of x and y. Add a label.
+# plt.bar(x, y, label='Sample Data')
 
-def is_solution_cell(cell):
-    if cell["cell_type"] != "code":
-        return False
+# plt.xlabel('X Values - Categories')
+# plt.ylabel('Y Values - Quantities')
 
-    # does any line of the cell have the SOLUTION tag anywhere in it
-    found_tag = [True for line in cell["source"] if contains_tag(line)]
+# plt.title('Bar Plot in Matplotlib')
+# plt.legend()
 
-    return bool(len(found_tag))
+# # Output the final plot
+# plt.show()
 
+# Histo
+# Set seed for reproducability
+# np.random.seed(100)
 
-# removes __SOLUTON__ line from tagged code cells
-def untag(cell):
-    if cell["cell_type"] != "code":
-        return cell
+# # Generate a data set of 200 retirement age values
+# x = 5*np.random.randn(200) + 65
 
-    source = [line for line in cell["source"] if not contains_tag(line)]
+# #Plot the histogram with hist() function
+# plt.hist(x, bins = 10, edgecolor='black')
 
-    cell.update({"source": source})
-    return cell
+# plt.xlabel('Retirement Age')
+# plt.ylabel('Frequency of Values')
+# plt.title('Histograms in Matplotlib')
+# plt.show()
 
+# # Set seed for reproducability
+# np.random.seed(100)
 
-def create_master_notebook(nb):
-    cells = [
-        cell for cell in nb["cells"] if for_master(cell)
-    ]
+# Generate a data set of 10000 retirement age values
+x = 5*np.random.randn(10000) + 65
 
-    nb.update({"cells": cells})
-    return nb
+# #Plot the distogram with hist() function
+# plt.hist(x, bins=50, edgecolor="black")
 
-
-def for_master(cell):
-    return is_markdown_cell(cell) or not is_solution_cell(cell)
-
-
-def for_sol(cell):
-    return is_markdown_cell(cell) or is_solution_cell(cell)
-
-
-def create_sol_notebook(nb):
-    cells = [
-        untag(cell) for cell in nb["cells"] if for_sol(cell)
-    ]
-
-    nb.update({"cells": cells})
-    return nb
-
-def write_new_notebook(notebook):
-    f = open("index.ipynb", "w")
-    f.write(json.dumps(notebook))
-    f.close()
-
-def notebook_to_markdown():
-    subprocess.call(["jupyter", "nbconvert", "index.ipynb",  "--to", "markdown"])
-    subprocess.call(["mv", "index.md", "README.md"])
-
-
-def sync_branch(repo, branch, notebook, msg="Curriculum Auto-Sync"):
-    # switch to branch, do nothing if does not exist
-    try:
-        repo.git.checkout(branch)
-        branch_exists = True
-    except GitCommandError:
-        branch_exists = False
-
-    if branch_exists:
-        # get all files from curriculum branch and put onto this branch,
-        # (the notebook and readme will be overwritten in the subsequent steps)
-        # Interesting use of the `checkout` command
-        # https://superuser.com/questions/692794/how-can-i-get-all-the-files-from-one-git-branch-and-put-them-into-the-current-b/1431858#1431858
-        repo.git.checkout(CURRICULUM_BRANCH, ".")
-
-        # delete current images, they'll be regenerated along with the notebook
-        subprocess.call(["rm", "-rf", "index_files"])
-
-        # write index.ipynb
-        write_new_notebook(notebook)
-
-        # generate markdown
-        notebook_to_markdown()
-
-        # add, commit, push
-        add_and_commit(repo, msg)
-        print(f"pushing to remote {branch} branch")
-        repo.git.push("origin", branch)
-
-def get_commit_message(repo):
-    # get commit message from repo or custom flag
-    sys_args = list(sys.argv)
-    i = sys_args.index(CUSTOM_COMMIT_MSG_FLAG) if CUSTOM_COMMIT_MSG_FLAG in sys_args else None
-
-    return sys_args[i + 1] if i else repo.head.commit.message
-
-
-def add_and_commit(repo, commit_msg):
-    repo.git.add(".")
-    try:
-        repo.git.commit("-m", commit_msg)
-    except GitCommandError:
-        print("Nothing to commit")
-
-# RUN
-# ======================
-
-# Identity
-git_ssh_identity_file = os.path.expanduser('~/.ssh/id_rsa')
-git_ssh_cmd = f'ssh -i {git_ssh_identity_file}'
-Git().custom_environment(GIT_SSH_COMMAND=git_ssh_cmd)
-
-repo = Repo(os.getcwd())
-# handling for updated main branch naming convention ensuring correct branch name
-try:
-    repo.git.checkout('main')
-    MASTER_BRANCH = 'main'
-except GitCommandError:
-    print('The main branch is not named "main"')
-    MASTER_BRANCH = 'master'
-
-try:
-    repo.git.checkout(CURRICULUM_BRANCH)
-except GitCommandError:
-    raise Exception(f"A branch called {CURRICULUM_BRANCH} must exist")
-
-commit_message = get_commit_message(repo)
-
-notebook_to_markdown()
-
-add_and_commit(repo, commit_message)
-print(f"pushing to remote {CURRICULUM_BRANCH} branch")
-repo.git.push("origin", CURRICULUM_BRANCH)
-
-notebook_json   = get_notebook_json()
-master_notebook = create_master_notebook(dict(notebook_json)) # pass a copy
-sol_notebook    = create_sol_notebook(dict(notebook_json)) # pass a copy
-
-sync_branch(repo, MASTER_BRANCH, master_notebook, msg=commit_message)
-sync_branch(repo, SOLUTION_BRANCH, sol_notebook, msg=commit_message)
-
-# leave user on curriculum branch
-repo.git.checkout(CURRICULUM_BRANCH)
+# plt.xlabel('Retirement Age')
+# plt.ylabel('Frequency of Values')
+# plt.title('Histograms in Matplotlib')
+# plt.show()
